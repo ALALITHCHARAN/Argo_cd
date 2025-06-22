@@ -1,0 +1,144 @@
+Integrating a **private Git repository** with **Argo CD in an offline VM** involves securely configuring Argo CD to authenticate with your Git server and fetch manifests. Here's how to do it:
+
+---
+
+## ✅ Goal:
+
+Let Argo CD sync applications from a **private Git repo** (e.g., GitLab, GitHub Enterprise, Bitbucket, Gitea, or a self-hosted Git server).
+
+---
+
+## 🔐 Step 1: Create Git Credentials Secret
+
+### ➤ If your Git uses **HTTPS with username/password or personal access token (PAT)**:
+
+```bash
+kubectl -n argocd create secret generic my-git-credentials \
+  --type=Opaque \
+  --from-literal=username='your-username' \
+  --from-literal=password='your-password-or-pat'
+```
+
+---
+
+### ➤ If your Git uses **SSH keys**:
+
+1. Generate an SSH key (if not already):
+
+```bash
+ssh-keygen -t ed25519 -C "argocd-access" -f argocd-ssh -N ""
+```
+
+2. Upload the public key (`argocd-ssh.pub`) to your Git server (as a deploy key or SSH key).
+
+3. Create the Argo CD secret:
+
+```bash
+kubectl -n argocd create secret generic my-ssh-creds \
+  --type=Opaque \
+  --from-file=sshPrivateKey=argocd-ssh
+```
+
+---
+
+## 🔧 Step 2: Register the Git Repository in Argo CD
+
+You can do this using either:
+
+### Option A: `argocd` CLI (easier)
+
+```bash
+argocd repo add git@your-git-server.com:your-org/your-repo.git \
+  --ssh-private-key-path ~/.ssh/argocd-ssh \
+  --name private-repo
+
+# or HTTPS
+argocd repo add https://your-git-server.com/your-org/your-repo.git \
+  --username your-username \
+  --password your-token-or-password \
+  --name private-repo
+```
+
+> `--name` is optional. Argo CD tracks by URL internally.
+
+> Add `--insecure` if your Git server uses self-signed certs.
+
+---
+
+### Option B: Directly in Kubernetes via `ConfigMap`
+
+Edit Argo CD's `argocd-cm` config map:
+
+```bash
+kubectl edit configmap argocd-cm -n argocd
+```
+
+Add under `data.repositories`:
+
+```yaml
+  data:
+    repositories: |
+      - url: https://your-git-server.com/your-org/your-repo.git
+        username: your-username
+        password: your-password
+        name: private-repo
+```
+
+Then restart the repo-server:
+
+```bash
+kubectl rollout restart deployment argocd-repo-server -n argocd
+```
+
+---
+
+## 🧪 Step 3: Test with a Sample App
+
+```bash
+argocd app create my-private-app \
+  --repo https://your-git-server.com/your-org/your-repo.git \
+  --path k8s/ \
+  --dest-server https://kubernetes.default.svc \
+  --dest-namespace default
+
+argocd app sync my-private-app
+```
+
+---
+
+## 🛡️ Optional: Accept Self-Signed Git Server Certificates
+
+If your Git server has a self-signed certificate:
+
+1. Export the cert from browser or command line.
+2. Mount the cert into `argocd-repo-server` and `argocd-server`.
+3. Set environment variable `GIT_SSL_NO_VERIFY=true` (not recommended long-term) **or** mount CA into `/etc/ssl/certs`.
+
+---
+
+## 🔁 To View All Repos
+
+```bash
+argocd repo list
+```
+
+---
+
+## 🔍 Troubleshooting Tips
+
+| Issue                 | Solution                                        |
+| --------------------- | ----------------------------------------------- |
+| Repo not syncing      | Check `argocd-repo-server` logs                 |
+| Auth errors           | Double-check PAT or SSH keys                    |
+| Self-signed SSL error | Use `--insecure` or install the CA              |
+| 403/401 errors        | Make sure access token/username has read access |
+
+---
+
+Would you like an example for:
+
+* GitLab with PAT
+* GitHub with SSH
+* Self-hosted Git over SSH with custom port?
+
+Let me know and I’ll tailor it.
