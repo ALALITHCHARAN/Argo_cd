@@ -32,6 +32,14 @@ wget https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install
 
 ### 1.2 Download All Required Argo CD Images
 
+```sh
+argocd$ grep image argocd-install.yaml | awk '{print $2}' | sort -u
+
+ghcr.io/dexidp/dex:v2.41.1
+quay.io/argoproj/argocd:v3.0.6
+redis:7.2.7-alpine
+```
+
 ```bash
 # Replace with actual version used in manifest (e.g., v2.11.0)
 docker pull quay.io/argoproj/argocd:v2.11.0
