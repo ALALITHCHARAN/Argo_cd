@@ -37,7 +37,7 @@ argocd$ grep image argocd-install.yaml | awk '{print $2}' | sort -u
 
 ghcr.io/dexidp/dex:v2.41.1
 quay.io/argoproj/argocd:v3.0.6
-redis:7.2.7-alpine
+docker.io/library/redis:7.2.7-alpine
 ```
 
 ```bash
