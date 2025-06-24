@@ -1,0 +1,26 @@
+        location /status {
+            stub_status on;
+            access_log   off;
+            allow 127.0.0.1;
+            deny all;
+        }
+
+        location /unifyapp/static {
+            alias /var/www/html/unifyapp/static;
+        }
+        location /unifyapp/login {
+            alias /var/www/html/unifyapp;
+        }
+
+        location /unifyapp/RedirectPage {
+            alias /var/www/html/unifyapp;
+        }
+
+
+
+
+
+        location / {
+            root   html;
+            index  index.html index.htm;
+        }
