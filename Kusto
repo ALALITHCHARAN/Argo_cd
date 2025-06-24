@@ -1,0 +1,147 @@
+Perfect! Let's walk through **both approaches**:
+
+---
+
+# ✅ 1. Minimal Working Example: **Flat YAML (No `kustomization.yaml`)**
+
+## 📁 Folder Structure
+
+```
+gitops/
+└── service-a/
+    ├── deployment.yaml
+    ├── service.yaml
+    └── ingress.yaml
+```
+
+## 🧾 Argo CD `Application` (for flat YAMLs)
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: service-a-flat
+  namespace: argocd
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: service-a
+  project: default
+  source:
+    repoURL: https://git.example.com/gitops.git
+    path: service-a
+    directory:
+      recurse: true       # important to include all YAMLs
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+```
+
+### ✅ Argo CD will show:
+
+* Deployment
+* Service
+* Ingress
+
+But no image substitution, overlays, config generation, or environment patching.
+
+---
+
+# ✅ 2. Minimal Working Example: **With `kustomization.yaml`**
+
+## 📁 Folder Structure
+
+```
+gitops/
+└── service-a/
+    ├── deployment.yaml
+    ├── service.yaml
+    ├── ingress.yaml
+    └── kustomization.yaml
+```
+
+## 📄 `kustomization.yaml`
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+
+images:
+  - name: registry.example.com/service-a
+    newTag: "v1.0.1"
+
+commonLabels:
+  app.kubernetes.io/name: service-a
+```
+
+## 🧾 Argo CD `Application` (with `kustomize`)
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: service-a-kustomize
+  namespace: argocd
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: service-a
+  project: default
+  source:
+    repoURL: https://git.example.com/gitops.git
+    path: service-a
+    targetRevision: HEAD
+    kustomize:
+      namePrefix: service-a-
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+```
+
+### ✅ Now you get:
+
+* Clean tree view
+* `image:` tag override via GitOps
+* Common labels
+* Patch support
+* Easy environment overlays (if needed)
+
+---
+
+# 🔁 Comparison: Flat vs Kustomize
+
+| Feature                                  | Flat YAMLs          | `kustomization.yaml`    |
+| ---------------------------------------- | ------------------- | ----------------------- |
+| Works with Argo CD                       | ✅ Yes               | ✅ Yes                   |
+| Easy setup                               | ✅ Super simple      | ✅ Slightly more setup   |
+| Image tag substitution                   | ❌ Not possible      | ✅ Supported (`images:`) |
+| Overlay environments                     | ❌ Hard to manage    | ✅ Easy (base/overlay)   |
+| Reuse shared resources                   | ❌ Manual copy-paste | ✅ Built-in support      |
+| Scale with 10–50 services                | ❌ Error-prone       | ✅ Best practice         |
+| Kustomize features (patches, generators) | ❌ None              | ✅ Full support          |
+
+---
+
+# ✅ Recommendation
+
+| If You Are...                                      | Use                      |
+| -------------------------------------------------- | ------------------------ |
+| Getting started or testing manually                | Flat YAML is OK          |
+| Wanting GitOps, CI image injection, env management | Use `kustomization.yaml` |
+
+---
+
+Would you like me to:
+
+* Zip up these examples for download?
+* Add support for multiple environments (dev/prod) with overlays?
+* Add a GitLab CI job to update the image tag in `kustomization.yaml`?
+
+Let me know!
