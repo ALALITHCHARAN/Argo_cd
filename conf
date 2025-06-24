@@ -24,3 +24,151 @@
             root   html;
             index  index.html index.htm;
         }
+
+
+
+Thank you for the **clear explanation** — that really helps! 🙏
+Let’s break it down and solve it precisely.
+
+---
+
+## ✅ Your Setup Recap
+
+You have:
+
+* A **custom NGINX pod** (not ingress-controller) running your web app
+* A web build deployed at:
+
+  * `/unifyapp/login`
+  * `/unifyapp/static`
+  * `/unifyapp/RedirectPage`
+* You’ve also applied an **Argo CD Ingress** at path `/`, but now:
+
+  * 🚫 Your custom NGINX web app **stopped working**
+  * 🚫 Argo CD UI **not accessible**
+
+---
+
+## 🎯 Goal
+
+You want:
+
+| Path                 | Should Serve              |
+| -------------------- | ------------------------- |
+| `/unifyapp/...`      | Your custom NGINX pod web |
+| `/argocd` or similar | Argo CD UI via Ingress    |
+
+---
+
+## 🛑 What's Wrong?
+
+You've likely deployed **Argo CD Ingress on `/`**, like this:
+
+```yaml
+path: /
+pathType: Prefix
+```
+
+This catches **all paths** on that domain — including `/unifyapp/...` — and **routes them to Argo CD**, even though they belong to your NGINX pod.
+So both UIs break because:
+
+* Argo CD isn't expecting `/unifyapp` paths → shows 404
+* NGINX pod isn't getting `/unifyapp` requests anymore
+
+---
+
+## ✅ How to Fix It (Cleanly)
+
+You **must separate the traffic** clearly:
+
+### ✅ Step 1: Argo CD should use a **unique path**, like `/argocd`
+
+Update Argo CD Ingress to something like:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-ingress
+  namespace: argocd
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: your.domain.com
+      http:
+        paths:
+          - path: /argocd(/|$)(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 80
+```
+
+🔁 This matches only `/argocd` and not `/unifyapp/...`
+
+---
+
+### ✅ Step 2: Patch Argo CD to work under `/argocd` subpath
+
+Run this:
+
+```bash
+kubectl -n argocd patch deployment argocd-server \
+  --type='json' \
+  -p='[
+    {"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--rootpath=/argocd"},
+    {"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--basehref=/argocd/"}
+]'
+```
+
+Then restart:
+
+```bash
+kubectl rollout restart deployment argocd-server -n argocd
+```
+
+---
+
+### ✅ Step 3: Access Both UIs
+
+| URL                                 | Result                  |
+| ----------------------------------- | ----------------------- |
+| `http://your.domain/unifyapp/login` | Your custom NGINX app ✅ |
+| `http://your.domain/argocd`         | Argo CD UI ✅            |
+
+Your web app remains untouched, and Argo CD uses its **own clean subpath**.
+
+---
+
+## ⚠️ Don't Use `/` for Argo CD in This Case
+
+If you apply Argo CD's Ingress with `path: /`, it will take **all traffic**, including your existing routes like `/unifyapp/...`.
+
+Always use **a unique path** like `/argocd` to isolate it.
+
+---
+
+## ✅ Summary
+
+| What You Have                          | What You Should Do                       |
+| -------------------------------------- | ---------------------------------------- |
+| Custom NGINX pod serving `/unifyapp/*` | Keep this untouched                      |
+| Argo CD exposed at `/`                 | ❌ Don't do this — it hijacks all traffic |
+| Argo CD exposed at `/argocd`           | ✅ Correct approach                       |
+| Patch Argo CD to handle subpath        | ✅ Required for UI to render properly     |
+
+---
+
+Would you like me to:
+
+* Generate the full YAML files for you?
+* Convert this to host-based routing instead?
+* Help debug if still not working?
+
+Let me know — you're very close to solving it!
