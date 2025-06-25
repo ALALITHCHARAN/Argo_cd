@@ -1,0 +1,135 @@
+Setting up **Argo CD CLI** (`argocd`) on an **offline VM** requires downloading the binary on a machine with internet, transferring it to the offline VM, and setting it up manually.
+
+---
+
+## ✅ Step-by-Step Guide to Set Up `argocd` CLI on an Offline VM
+
+---
+
+### 🧱 What You Need
+
+| Item                       | Required? | Notes                            |
+| -------------------------- | --------- | -------------------------------- |
+| Internet-connected machine | ✅         | For downloading CLI binary       |
+| Offline VM with Linux      | ✅         | To install and use CLI           |
+| SCP, USB, or shared folder | ✅         | To transfer binary to offline VM |
+
+---
+
+## 🧾 STEP 1: Download the Argo CD CLI Binary on an Online Machine
+
+1. Visit the Argo CD GitHub releases:
+   👉 [https://github.com/argoproj/argo-cd/releases](https://github.com/argoproj/argo-cd/releases)
+
+2. Download the latest Linux CLI binary (e.g., for v2.11.0):
+
+```bash
+curl -LO https://github.com/argoproj/argo-cd/releases/download/v2.11.0/argocd-linux-amd64
+```
+
+3. Rename it to `argocd`:
+
+```bash
+mv argocd-linux-amd64 argocd
+chmod +x argocd
+```
+
+---
+
+## 📦 STEP 2: Transfer the CLI Binary to Your Offline VM
+
+Choose one of the following:
+
+### Option A: Using `scp` (if VMs can reach each other):
+
+```bash
+scp argocd user@offline-vm:/home/user/
+```
+
+### Option B: Using USB or Shared Folder
+
+* Copy `argocd` binary to a USB drive or shared folder.
+* Mount it on the offline VM.
+* Copy the binary into `/usr/local/bin` or another location in your `$PATH`.
+
+---
+
+## 🛠️ STEP 3: Move and Setup on Offline VM
+
+On your offline VM:
+
+```bash
+sudo mv /home/user/argocd /usr/local/bin/argocd
+chmod +x /usr/local/bin/argocd
+```
+
+Test the CLI:
+
+```bash
+argocd version
+```
+
+You should see something like:
+
+```
+argocd: v2.11.0
+  BuildDate: 2024-06-20T10:30:00Z
+  GitCommit: abcdef123456
+```
+
+---
+
+## 🌐 STEP 4: Access Argo CD Server on the Offline VM
+
+If your Argo CD is running in the same VM or K8s cluster:
+
+### Port-forward the server:
+
+```bash
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+```
+
+Then login:
+
+```bash
+argocd login localhost:8080 --username admin --password <your-password> --insecure
+```
+
+---
+
+## 📋 Sample Commands You Can Use
+
+| Command                 | Purpose                  |
+| ----------------------- | ------------------------ |
+| `argocd login`          | Login to Argo CD server  |
+| `argocd app list`       | See list of apps         |
+| `argocd app create`     | Create a new application |
+| `argocd app sync`       | Trigger sync manually    |
+| `argocd app delete`     | Delete an application    |
+| `argocd app get <name>` | Get app status/info      |
+
+---
+
+## 🔐 Optional: Set Bash Autocomplete (Advanced)
+
+```bash
+argocd completion bash > ~/.argocd-completion
+echo 'source ~/.argocd-completion' >> ~/.bashrc
+source ~/.bashrc
+```
+
+---
+
+## ✅ Summary
+
+| Step | Description                                             |
+| ---- | ------------------------------------------------------- |
+| 1    | Download `argocd` binary on internet-connected machine  |
+| 2    | Transfer binary to offline VM (via USB, SCP, etc.)      |
+| 3    | Move to `/usr/local/bin` and set executable permissions |
+| 4    | Port-forward or expose Argo CD server                   |
+| 5    | Login using CLI and start managing apps                 |
+
+---
+
+Would you like a ZIP package with CLI + example manifests to transfer together to your offline VM?
