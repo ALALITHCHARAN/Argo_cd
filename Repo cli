@@ -1,0 +1,4 @@
+argocd repo add https://gitlab.com/your-org/your-repo.git \
+  --username your-username \
+  --password your-personal-access-token \
+  --name my-gitlab-repo
