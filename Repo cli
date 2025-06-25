@@ -1,2 +1,0 @@
-{"level":"fatal","msg":"rpc error: code = Unknown desc = error testing repository connectivity: unable to ls-remote HEAD on repository: failed to list refs: Get \"https://10.176.57.169:8081/reimagination/fi_reimagination.git/info/refs?service=git-upload-pack\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)","time":"2025-06-25T18:18:59+05:30"}
-
