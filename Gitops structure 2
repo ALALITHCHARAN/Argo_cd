@@ -1,0 +1,92 @@
+Great follow-up — this is a key part of structuring a GitOps repo.
+
+---
+
+## ✅ Summary Answer:
+
+* 📁 `kustomization.yaml` lives **inside each service directory** (e.g., `services/orders/`)
+* 📄 `Application` manifests can be:
+
+  * **Option A:** Managed inside **Argo CD UI or CLI** (stored only in cluster)
+  * **Option B:** Stored in Git (recommended) — in a **separate folder**, such as `apps/` or `applications/`
+
+---
+
+## 🔧 Recommended Git Structure (Single GitOps Repo)
+
+```
+gitops-repo/
+├── applications/
+│   ├── orders-app.yaml
+│   ├── payments-app.yaml
+│   ├── users-app.yaml
+│   └── ...
+└── services/
+    ├── orders/
+    │   ├── configmap.yaml
+    │   ├── deployment.yaml
+    │   ├── service.yaml
+    │   ├── ingress.yaml
+    │   └── kustomization.yaml
+    ├── payments/
+    │   └── ...
+    └── users/
+        └── ...
+```
+
+---
+
+### 📄 Example: `applications/orders-app.yaml`
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: orders
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://git.example.com/gitops-repo.git
+    targetRevision: main
+    path: services/orders    # <--- This path has the kustomization.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: orders
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+```
+
+Repeat for all 20 services.
+
+---
+
+## 🧠 Why Keep Applications in a Separate Folder?
+
+* Easier to manage a **central view** of all apps
+* Enables **App of Apps pattern**
+* Keeps service YAMLs clean and focused only on their k8s resources
+
+---
+
+## ✅ Final Tip: Deploy Applications to Argo CD
+
+Once the `Application` YAMLs are created, you can:
+
+* Apply them manually:
+
+  ```bash
+  kubectl apply -f applications/orders-app.yaml -n argocd
+  ```
+* Or use an **App of Apps** to automate this (if desired)
+
+---
+
+Would you like:
+
+* A script to auto-generate all 20 `Application.yaml` files?
+* App of Apps setup?
+
+Let me know!
