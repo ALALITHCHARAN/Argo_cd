@@ -1,0 +1,112 @@
+Here's a **complete, real-world example** based on your request:
+
+---
+
+## 🎯 Scenario
+
+* Microservice: `orders`
+
+* Git Repo layout:
+
+  ```
+  a/
+  └── b/
+      └── yamls/
+          ├── deployment.yaml
+          ├── service.yaml
+          ├── ingress.yaml
+          ├── configmap.yaml
+          ├── kustomization.yaml
+  common/
+  └── base/
+      └── envconfigmap.yaml  <-- This is shared (goes two directories up from yamls/)
+  ```
+
+* Git branch: `brn`
+
+* Kubernetes namespace: `NSR`
+
+* Argo CD installed in: `argocd`
+
+---
+
+## ✅ 1. `kustomization.yaml`
+
+📁 Location: `a/b/yamls/kustomization.yaml`
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - configmap.yaml
+  - ../../../common/base/envconfigmap.yaml  # goes 2 directories up
+```
+
+✅ This structure means:
+
+* 4 resources are in the **same directory**
+* 1 shared config is pulled from **two levels up**
+
+---
+
+## ✅ 2. `application.yaml` for Argo CD
+
+📁 You can apply this in the `argocd` namespace (via Git or `kubectl`)
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: orders-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://git.example.com/your-org/microservices.git
+    targetRevision: brn               # The branch you mentioned
+    path: a/b/yamls                   # This is the folder with kustomization.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: NSR                    # Deploying services into this namespace
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+```
+
+---
+
+## 🧪 Test It
+
+1. Commit all files to your Git repo under branch `brn`
+2. Apply the `Application`:
+
+```bash
+kubectl apply -f application.yaml -n argocd
+```
+
+3. In the Argo CD UI, you’ll see `orders-app` syncing to the `NSR` namespace
+4. Argo CD will use Kustomize to:
+
+   * Read `a/b/yamls/kustomization.yaml`
+   * Apply all listed resources, including the common `envconfigmap`
+
+---
+
+## ✅ Summary
+
+| File                 | Purpose                                 |
+| -------------------- | --------------------------------------- |
+| `kustomization.yaml` | Declares which YAMLs to apply           |
+| `application.yaml`   | Tells Argo CD to sync from the Git repo |
+| `../../../...` path  | Pulls in shared config from other dirs  |
+| Branch `brn`         | Argo CD will fetch from this branch     |
+| Namespace `NSR`      | All resources deployed here             |
+
+---
+
+Would you like me to generate this as a **real Git repo structure** or PDF guide with diagrams?
