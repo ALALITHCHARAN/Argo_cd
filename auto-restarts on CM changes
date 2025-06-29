@@ -160,6 +160,30 @@ spec:
         configmap-hash: dummy  # This will be replaced with a hash
 ```
 
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://your-git-repo-url.git'
+    targetRevision: main
+    path: nginx-app
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+
+
 ---
 
 ## 🛠 How It Works
