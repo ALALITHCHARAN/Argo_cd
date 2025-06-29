@@ -1,0 +1,183 @@
+Here’s a **complete working example** of a microservice deployment using **Kustomize** that includes:
+
+* A **Deployment** with `ConfigMap` checksum annotation (auto-restarts on CM changes)
+* A **ConfigMap**
+* A **Service**
+* An **Ingress**
+* A **Kustomization file**
+
+---
+
+## 📁 Directory Structure (for example, `nginx-app/`)
+
+```
+nginx-app/
+├── deployment.yaml
+├── service.yaml
+├── configmap.yaml
+├── ingress.yaml
+└── kustomization.yaml
+```
+
+---
+
+## ✅ `deployment.yaml`
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+      annotations:
+        configmap-hash: "{{CONFIG_HASH}}"  # Will be patched by Kustomize
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d
+          readOnly: true
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-config
+```
+
+---
+
+## ✅ `configmap.yaml`
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  default.conf: |
+    server {
+        listen 80;
+        location / {
+            return 200 "Hello from ConfigMap\n";
+        }
+    }
+```
+
+---
+
+## ✅ `service.yaml`
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+```
+
+---
+
+## ✅ `ingress.yaml`
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: nginx.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-service
+            port:
+              number: 80
+```
+
+---
+
+## ✅ `kustomization.yaml`
+
+```yaml
+resources:
+  - deployment.yaml
+  - service.yaml
+  - configmap.yaml
+  - ingress.yaml
+
+configMapGenerator:
+  - name: nginx-config
+    files:
+      - default.conf=configmap.yaml
+
+generatorOptions:
+  disableNameSuffixHash: false  # Enables hash suffix
+
+patchesStrategicMerge:
+  - patch-deployment.yaml
+```
+
+---
+
+## ✅ `patch-deployment.yaml`
+
+Add a patch file to inject the hash into the annotation:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  template:
+    metadata:
+      annotations:
+        configmap-hash: dummy  # This will be replaced with a hash
+```
+
+---
+
+## 🛠 How It Works
+
+* Kustomize generates a new name for the ConfigMap like `nginx-config-<hash>`
+* That hash is injected into the Deployment via annotation
+* Kubernetes sees a new Pod template → triggers a **rolling restart**
+
+---
+
+## 🚀 How to Deploy
+
+```bash
+kubectl apply -k ./nginx-app/
+```
+
+Every time you change the `default.conf` (ConfigMap content), Kustomize changes the hash → Deployment gets updated and restarted.
+
+---
+
+Let me know if you’re using **Helm** or want to automate this in GitOps (like with Argo CD), I’ll adapt the structure for that too.
