@@ -1,0 +1,7 @@
+
+prefer separate branch for manifests
+configmap generator for syncing cms
+prune to delete old resource
+self heal to be sync with git
+auto sync to deploy new changes automatically
+3min sync   webhook or poll interval reduce 
